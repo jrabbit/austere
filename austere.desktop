@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Austere
+Exec=python /home/jack/Projects/austere/austere.py %u
+Terminal=false
+Icon=view-refresh
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml_xml;image/webp;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/ftp;
