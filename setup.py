@@ -9,9 +9,9 @@ setup(
     # long_description="",
     description="a default browser switcher based on material conditions & contexts",
     scripts=['austere.py'],
-    install_requires=['psutil'],
+    install_requires=["clint==0.5.1", "psutil==4.0.0"],
     classifiers=['Environment :: X11 Applications',
                  'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
                  'Topic :: Internet :: WWW/HTTP :: Browsers',
-                 'Topic :: Multimedia', ]
+                 'Topic :: Multimedia', 'Operating System :: POSIX :: Linux', ]
 )
