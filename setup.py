@@ -1,7 +1,7 @@
 from setuptools import setup
 setup(
     name='austere',
-    version='0.1a1',
+    version='0.1.0',
     author='Jack Laxson',
     author_email='jackjrabbit+austere@gmail.com',
     url='https://github.com/jrabbit/austere',
@@ -13,5 +13,7 @@ setup(
     classifiers=['Environment :: X11 Applications',
                  'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
                  'Topic :: Internet :: WWW/HTTP :: Browsers',
-                 'Topic :: Multimedia', 'Operating System :: POSIX :: Linux', ]
+                 'Topic :: Multimedia', 'Operating System :: POSIX :: Linux', 
+                 'Programming Language :: Python :: 3.5',
+                 'Programming Language :: Python :: 2.7', ]
 )
