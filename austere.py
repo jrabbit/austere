@@ -21,6 +21,18 @@ def main(*args):
         game_pid = int(overlay[0].cmdline()[2])
         logging.info("Detected game {0}", psutil.Process(pid=game_pid).name())
         use_light = True
+    # check for big picture games
+    # they're direct descendants of steam
+    elif len(overlay) == 0:
+        for proc in psutil.process_iter():
+            if proc.name() == "steam":
+                z = filter(lambda x: x.name() not in ['steamwebhelper','steam','sh', 'SteamChildMonit'], proc.children(recursive=True))
+                if len(z) == 1:
+                    logging.info("Detected game {0}", z[0])
+                    use_light = True
+                else:
+                    logging.error("Found more than one potential game process, this behavior is undefined")
+                    logging.info(z)
     # check if we're almost out of memory
     elif psutil.virtual_memory().percent > 90:
         use_light = True
