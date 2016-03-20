@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import json
 import logging
 import sys
@@ -30,6 +31,8 @@ def main(*args):
                 if len(z) == 1:
                     logging.info("Detected game {0}", z[0])
                     use_light = True
+                elif len(z) == 0:
+                    logging.info("Found no games running in big picture mode")
                 else:
                     logging.error("Found more than one potential game process, this behavior is undefined")
                     logging.info(z)
