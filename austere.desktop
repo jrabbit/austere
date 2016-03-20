@@ -1,8 +1,9 @@
+#!/usr/bin/env xdg-open
 [Desktop Entry]
 Version=1.0
 Name=Austere
-Exec=python /home/jack/Projects/austere/austere.py %u
-Terminal=false
+Exec=/usr/local/bin/austere.py %u
+#Terminal=True
 Icon=view-refresh
 Type=Application
 Categories=Network;WebBrowser;
