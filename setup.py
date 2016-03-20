@@ -1,7 +1,7 @@
 from setuptools import setup
 setup(
     name='austere',
-    version='0.1.0',
+    version='0.2.0',
     author='Jack Laxson',
     author_email='jackjrabbit+austere@gmail.com',
     url='https://github.com/jrabbit/austere',
