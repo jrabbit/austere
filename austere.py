@@ -4,13 +4,15 @@ import logging
 import sys
 import shlex
 import subprocess
+import platform
 
 import psutil
 from clint import resources
 from clint.textui import prompt, validators, puts, indent
 
+logger = logging.getLogger(__name__)
 
-def main(*args):
+def main(*args) -> None:
     resources.init('jacklaxson', 'austere')
     j = resources.user.read("config.json")
     light_browser = json.loads(j)['light_browser']
@@ -20,7 +22,7 @@ def main(*args):
     if len(overlay) > 0:
         # all of the gameoverlayui's have the pid
         game_pid = int(overlay[0].cmdline()[2])
-        logging.info("Detected game {0}", psutil.Process(pid=game_pid).name())
+        logger.info("Detected game {0}", psutil.Process(pid=game_pid).name())
         use_light = True
     # check for big picture games
     # they're direct descendants of steam
@@ -29,13 +31,13 @@ def main(*args):
             if proc.name() == "steam":
                 z = filter(lambda x: x.name() not in ['steamwebhelper','steam','sh', 'SteamChildMonit'], proc.children(recursive=True))
                 if len(z) == 1:
-                    logging.info("Detected game {0}", z[0])
+                    logger.info("Detected game {0}", z[0])
                     use_light = True
                 elif len(z) == 0:
-                    logging.info("Found no games running in big picture mode")
+                    logger.info("Found no games running in big picture mode")
                 else:
-                    logging.error("Found more than one potential game process, this behavior is undefined")
-                    logging.info(z)
+                    logger.error("Found more than one potential game process, this behavior is undefined")
+                    logger.info(z)
     # check if we're almost out of memory
     elif psutil.virtual_memory().percent > 90:
         use_light = True
@@ -45,22 +47,25 @@ def main(*args):
     else:
         subprocess.call(['x-www-browser', sys.argv[1]])
 
-    logging.debug(args)
+    logger.debug(args)
 
 
-def pick_browser():
-    browsers = subprocess.check_output(
-        shlex.split("update-alternatives --list x-www-browser")).split()
-    print("Found these browsers:")
-    with indent(4):
-        for b in browsers:
-            puts(b)
-    not_chrome = filter(lambda x: "chrome" not in x, browsers)
-    path = prompt.query('Pick your lightweight browser:', default=not_chrome[0], validators=[validators.FileValidator()])
-    return path
+def pick_browser() -> str:
+    if platform.system() == "Windows":
+        logger.debug("welcome to windows. We use win10.")
+    elif platform.system() == "Linux":
+        browsers = subprocess.check_output(
+            shlex.split("update-alternatives --list x-www-browser")).split()
+        print("Found these browsers:")
+        with indent(4):
+            for b in browsers:
+                puts(b)
+        not_chrome = filter(lambda x: "chrome" not in x, browsers)
+        path = prompt.query('Pick your lightweight browser:', default=not_chrome[0], validators=[validators.FileValidator()])
+        return path
 
 
-def config():
+def config() -> None:
     resources.init('jacklaxson', 'austere')
     j = resources.user.read("config.json")
     if j == None:
