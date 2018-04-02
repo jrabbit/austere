@@ -5,12 +5,13 @@ import sys
 import shlex
 import subprocess
 import platform
+import winreg
 
 import psutil
 from clint import resources
 from clint.textui import prompt, validators, puts, indent
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("austere")
 
 def main(*args) -> None:
     resources.init('jacklaxson', 'austere')
@@ -50,9 +51,18 @@ def main(*args) -> None:
     logger.debug(args)
 
 
+def win_default() -> str:
+    # HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet
+    reg = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet")
+    return reg
+
+
 def pick_browser() -> str:
     if platform.system() == "Windows":
         logger.debug("welcome to windows. We use win10.")
+        # get browser options and default on windows
+        logger.debug("default browser: %s", win_default())
+
     elif platform.system() == "Linux":
         browsers = subprocess.check_output(
             shlex.split("update-alternatives --list x-www-browser")).split()

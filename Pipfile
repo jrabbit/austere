@@ -7,8 +7,6 @@ name = "pypi"
 
 [packages]
 
-argparse = "==1.2.1"
-args = "==0.1.0"
 clint = "==0.5.1"
 psutil = "*"
 
