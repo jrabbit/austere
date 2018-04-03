@@ -7,6 +7,8 @@ import subprocess
 import platform
 import winreg
 
+from typing import List
+
 import psutil
 from clint import resources
 from clint.textui import prompt, validators, puts, indent
@@ -53,8 +55,22 @@ def main(*args) -> None:
 
 def win_default() -> str:
     # HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet
-    reg = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet")
-    return reg
+    reg_value = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet")
+    return reg_value
+
+def win_browser_list() -> List[str]:
+    # https://docs.python.org/3.6/library/winreg.html
+    # reg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
+    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet") as key:
+        target_keys, value_keys, last_mod = winreg.QueryInfoKey(key)
+        l = list()
+        for i in range(target_keys):
+            v = winreg.EnumKey(key, i)
+            logger.debug("got value from StartMenuInternet: %s", v)
+            l.append(v)
+        # print(key)
+        return l
+
 
 
 def pick_browser() -> str:
@@ -62,6 +78,7 @@ def pick_browser() -> str:
         logger.debug("welcome to windows. We use win10.")
         # get browser options and default on windows
         logger.debug("default browser: %s", win_default())
+        win_browser_list()
 
     elif platform.system() == "Linux":
         browsers = subprocess.check_output(
