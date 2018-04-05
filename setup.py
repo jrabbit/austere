@@ -13,7 +13,7 @@ setup(
     # entry_points = {
     #     'console_scripts': ['austere=austere.command_line:main'],
     # }
-    install_requires=["clint>=0.5.1", "psutil>=4.0.0"],
+    install_requires=["clint>=0.5.1", "psutil>=4.0.0", "attrs"],
     classifiers=['Environment :: X11 Applications',
                  'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
                  'Topic :: Internet :: WWW/HTTP :: Browsers',
