@@ -9,6 +9,7 @@ import winreg
 
 from typing import List
 
+import attr
 import psutil
 from clint import resources
 from clint.textui import prompt, validators, puts, indent
@@ -46,19 +47,34 @@ def main(*args) -> None:
         use_light = True
     # check battery info
     if use_light:
-        subprocess.call([light_browser, sys.argv[1]])
+        if platform.system() == "Windows":
+            pass
+        else:
+            subprocess.call([light_browser, sys.argv[1]])
     else:
-        subprocess.call(['x-www-browser', sys.argv[1]])
+        if platform.system() == "Windows":
+            subprocess.call(['powershell.exe', '-Command', 'start {}'.format(sys.argv[1])])
+        else:    
+            subprocess.call(['x-www-browser', sys.argv[1]])
 
     logger.debug(args)
 
+
+@attr.s
+class WindowsBrowser():
+    name = attr.ib()
+    enum_order = attr.ib()
+    path = attr.ib()
+
+    # def __str__(self):
+    #     return self.name
 
 def win_default() -> str:
     # HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet
     reg_value = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet")
     return reg_value
 
-def win_browser_list() -> List[str]:
+def win_browser_list() -> List[WindowsBrowser]:
     # https://docs.python.org/3.6/library/winreg.html
     # reg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
     with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet") as key:
@@ -67,18 +83,33 @@ def win_browser_list() -> List[str]:
         for i in range(target_keys):
             v = winreg.EnumKey(key, i)
             logger.debug("got value from StartMenuInternet: %s", v)
-            l.append(v)
+            # Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet\Firefox-308046B0AF4A39CB\shell\open\command
+            path = winreg.QueryValue(key, "{}\shell\open\command".format(v))
+            wb = WindowsBrowser(name=v, enum_order=i, path=path)
+            l.append(wb)
         # print(key)
         return l
 
-
+def win_register():
+    "need to be admin"
+    try:
+        with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTP") as k:
+            winreg.SetValue(k, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
+        with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTPS") as kssl:
+            winreg.SetValue(kssl, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
+    except OSError as e:
+        logger.error(e)
 
 def pick_browser() -> str:
     if platform.system() == "Windows":
         logger.debug("welcome to windows. We use win10.")
         # get browser options and default on windows
         logger.debug("default browser: %s", win_default())
-        win_browser_list()
+        opts = win_browser_list()
+        for b in opts:
+            print(b)
+        path = prompt.query('Pick your lightweight browser:')
+        return path
 
     elif platform.system() == "Linux":
         browsers = subprocess.check_output(
