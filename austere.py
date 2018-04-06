@@ -26,22 +26,31 @@ def main(*args) -> None:
     if len(overlay) > 0:
         # all of the gameoverlayui's have the pid
         game_pid = int(overlay[0].cmdline()[2])
-        logger.info("Detected game {0}", psutil.Process(pid=game_pid).name())
+        logger.info("Detected game %s", psutil.Process(pid=game_pid).name())
         use_light = True
     # check for big picture games
     # they're direct descendants of steam
     elif len(overlay) == 0:
         for proc in psutil.process_iter():
             if proc.name() == "steam":
-                z = filter(lambda x: x.name() not in ['steamwebhelper','steam','sh', 'SteamChildMonit'], proc.children(recursive=True))
+                z = list(filter(lambda x: x.name() not in ['steamwebhelper','steam','sh', 'SteamChildMonit'], proc.children(recursive=True)))
                 if len(z) == 1:
-                    logger.info("Detected game {0}", z[0])
+                    logger.info("Detected game %s", z[0])
                     use_light = True
                 elif len(z) == 0:
                     logger.info("Found no games running in big picture mode")
                 else:
                     logger.error("Found more than one potential game process, this behavior is undefined")
                     logger.info(z)
+            elif proc.name() == 'Battle.net.exe':
+                z = list(filter(lambda x: x.name() not in ['Battle.net Helper.exe', 'CrashMailer_64.exe'], proc.children(recursive=True)))
+                if len(z) == 1:
+                    logger.info("Detected game %s", z[0])
+                    use_light = True
+                else:
+                    logger.info(z)
+                logger.info("battlenet children: %s", proc.children(recursive=True))
+
     # check if we're almost out of memory
     elif psutil.virtual_memory().percent > 90:
         use_light = True
@@ -94,9 +103,16 @@ def win_register():
     "need to be admin"
     try:
         with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTP") as k:
-            winreg.SetValue(k, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
-        with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTPS") as kssl:
-            winreg.SetValue(kssl, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
+            # winreg.SetValue(k, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
+            logger.debug("\shell")
+            with winreg.CreateKey(k, "shell") as shellkey:
+                logger.debug("\open")
+                with winreg.CreateKey(shellkey, "open") as openkey:
+                    logger.debug("\command")
+                    with winreg.CreateKey(openkey, "command") as cmdkey:
+                        winreg.SetValue(cmdkey, None, winreg.REG_SZ,  '"{} austere" "%1"'.format(sys.argv[0]))
+        # with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTPS") as kssl:
+        #     winreg.SetValue(kssl, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
     except OSError as e:
         logger.error(e)
 
