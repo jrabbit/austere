@@ -78,6 +78,9 @@ class WindowsBrowser():
     # def __str__(self):
     #     return self.name
 
+# https://stackoverflow.com/questions/31164253/how-to-open-url-in-microsoft-edge-from-the-command-line#31281412
+# https://msdn.microsoft.com/en-us/library/windows/desktop/cc144175(v=vs.85).aspx
+
 def win_default() -> str:
     # HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet
     reg_value = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet")
