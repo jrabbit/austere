@@ -11,10 +11,13 @@ from typing import List
 
 import attr
 import psutil
+import click
+
 from clint import resources
 from clint.textui import prompt, validators, puts, indent
 
 logger = logging.getLogger("austere")
+
 
 def main(*args) -> None:
     resources.init('jacklaxson', 'austere')
@@ -66,17 +69,13 @@ def main(*args) -> None:
         else:    
             subprocess.call(['x-www-browser', sys.argv[1]])
 
-    logger.debug(args)
-
 
 @attr.s
-class WindowsBrowser():
+class WindowsBrowser:
     name = attr.ib()
     enum_order = attr.ib()
     path = attr.ib()
 
-    # def __str__(self):
-    #     return self.name
 
 # https://stackoverflow.com/questions/31164253/how-to-open-url-in-microsoft-edge-from-the-command-line#31281412
 # https://msdn.microsoft.com/en-us/library/windows/desktop/cc144175(v=vs.85).aspx
@@ -85,6 +84,7 @@ def win_default() -> str:
     # HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet
     reg_value = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet")
     return reg_value
+
 
 def win_browser_list() -> List[WindowsBrowser]:
     # https://docs.python.org/3.6/library/winreg.html
@@ -96,28 +96,30 @@ def win_browser_list() -> List[WindowsBrowser]:
             v = winreg.EnumKey(key, i)
             logger.debug("got value from StartMenuInternet: %s", v)
             # Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet\Firefox-308046B0AF4A39CB\shell\open\command
-            path = winreg.QueryValue(key, "{}\shell\open\command".format(v))
+            path = winreg.QueryValue(key, r"{}\shell\open\command".format(v))
             wb = WindowsBrowser(name=v, enum_order=i, path=path)
             l.append(wb)
         # print(key)
         return l
+
 
 def win_register():
     "need to be admin"
     try:
         with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTP") as k:
             # winreg.SetValue(k, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
-            logger.debug("\shell")
+            logger.debug(r"\shell")
             with winreg.CreateKey(k, "shell") as shellkey:
-                logger.debug("\open")
+                logger.debug(r"\open")
                 with winreg.CreateKey(shellkey, "open") as openkey:
-                    logger.debug("\command")
+                    logger.debug(r"\command")
                     with winreg.CreateKey(openkey, "command") as cmdkey:
                         winreg.SetValue(cmdkey, None, winreg.REG_SZ,  '"{} austere" "%1"'.format(sys.argv[0]))
         # with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTPS") as kssl:
         #     winreg.SetValue(kssl, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
     except OSError as e:
         logger.error(e)
+
 
 def pick_browser() -> str:
     if platform.system() == "Windows":
@@ -159,10 +161,57 @@ def config() -> None:
     d = {"light_browser": path}
     resources.user.write('config.json', json.dumps(d))
 
+folder = click.get_app_dir("Austere")
+
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+
+@click.group(context_settings=CONTEXT_SETTINGS, invoke_without_command=True)
+@click.option('--version', 'my_version', default=False, is_flag=True, help="this is a bogus arg mapped to version command for maximum nice", hidden=True)
+@click.option('--debug', default=False, is_flag=True, help="control log level")
+@click.option('--verbose/--silent', default=True, help="control log level")
+@click.pass_context
+def cli_base(ctx, verbose, debug, my_version):
+    # mk_folder()
+    # only the first basicConfig() is respected.
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
+    if my_version:
+        # Skip directly to version command like the user would expect a gnu program to.
+        ctx.invoke(version)
+        ctx.exit()
+    elif ctx.invoked_subcommand is None:
+        # still do normal things via the named help even
+        ctx.invoke(local_help)
+
+
+@cli_base.command()
+def version():
+    ver = "0.2.0"
+    print(f"version {ver} austere")
+
+
+@cli_base.command("help")
+@click.pass_context
+def local_help(ctx):
+    """Show this message and exit."""
+    print(ctx.parent.get_help())
+
+
+@cli_base.command("config")
+def config_cmd():
+    """Configure your austere install. Choose a light-weight browser."""
+    pass
+
+
+@cli_base.command()
+@click.argument("URL")
+def run_on_url(url):
+    pass
+
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    if len(sys.argv) > 1:
-        main(sys.argv)
-    else:
-        config()
+
+    cli_base()

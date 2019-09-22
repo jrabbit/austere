@@ -7,8 +7,9 @@ name = "pypi"
 clint = "==0.5.1"
 psutil = "*"
 attrs = "*"
+click = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.6"
+python_version = "3.7"
