@@ -4,10 +4,13 @@ import logging
 import sys
 import shlex
 import subprocess
+import os.path
 import platform
-import winreg
-
 from typing import List
+
+
+if platform.system() == "Windows":
+    import winreg
 
 import attr
 import psutil
@@ -19,7 +22,7 @@ from clint.textui import prompt, validators, puts, indent
 logger = logging.getLogger("austere")
 
 
-def main(*args) -> None:
+def main() -> None:
     resources.init('jacklaxson', 'austere')
     j = resources.user.read("config.json")
     light_browser = json.loads(j)['light_browser']
@@ -36,7 +39,7 @@ def main(*args) -> None:
     elif len(overlay) == 0:
         for proc in psutil.process_iter():
             if proc.name() == "steam":
-                z = list(filter(lambda x: x.name() not in ['steamwebhelper','steam','sh', 'SteamChildMonit'], proc.children(recursive=True)))
+                z = list(filter(lambda x: x.name() not in ['steamwebhelper', 'steam', 'sh', 'SteamChildMonit'], proc.children(recursive=True)))
                 if len(z) == 1:
                     logger.info("Detected game %s", z[0])
                     use_light = True
@@ -66,7 +69,7 @@ def main(*args) -> None:
     else:
         if platform.system() == "Windows":
             subprocess.call(['powershell.exe', '-Command', 'start {}'.format(sys.argv[1])])
-        else:    
+        else:
             subprocess.call(['x-www-browser', sys.argv[1]])
 
 
@@ -82,14 +85,14 @@ class WindowsBrowser:
 
 def win_default() -> str:
     # HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet
-    reg_value = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet")
+    reg_value = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Clients\StartMenuInternet")
     return reg_value
 
 
 def win_browser_list() -> List[WindowsBrowser]:
     # https://docs.python.org/3.6/library/winreg.html
     # reg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
-    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Clients\StartMenuInternet") as key:
+    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Clients\StartMenuInternet") as key:
         target_keys, value_keys, last_mod = winreg.QueryInfoKey(key)
         l = list()
         for i in range(target_keys):
@@ -101,24 +104,6 @@ def win_browser_list() -> List[WindowsBrowser]:
             l.append(wb)
         # print(key)
         return l
-
-
-def win_register():
-    "need to be admin"
-    try:
-        with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTP") as k:
-            # winreg.SetValue(k, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
-            logger.debug(r"\shell")
-            with winreg.CreateKey(k, "shell") as shellkey:
-                logger.debug(r"\open")
-                with winreg.CreateKey(shellkey, "open") as openkey:
-                    logger.debug(r"\command")
-                    with winreg.CreateKey(openkey, "command") as cmdkey:
-                        winreg.SetValue(cmdkey, None, winreg.REG_SZ,  '"{} austere" "%1"'.format(sys.argv[0]))
-        # with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTPS") as kssl:
-        #     winreg.SetValue(kssl, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
-    except OSError as e:
-        logger.error(e)
 
 
 def pick_browser() -> str:
@@ -139,29 +124,12 @@ def pick_browser() -> str:
         with indent(4):
             for b in browsers:
                 puts(b)
-        not_chrome = filter(lambda x: "chrome" not in x, browsers)
+        not_chrome = list(filter(lambda x: "chrome" not in x, browsers))
         path = prompt.query('Pick your lightweight browser:', default=not_chrome[0], validators=[validators.FileValidator()])
         return path
 
 
-def config() -> None:
-    resources.init('jacklaxson', 'austere')
-    j = resources.user.read("config.json")
-    if j == None:
-        path = pick_browser()
-    else:
-        light_browser = json.loads(j)['light_browser']
-        print("Your default lightweight browser is: %s" % light_browser)
-        z = prompt.query(
-            'Change your lightweight browser? [y/n]', validators=[validators.OptionValidator(["y", "n"])]).lower()
-        if z == "y":
-            path = pick_browser()
-        else:
-            path = light_browser
-    d = {"light_browser": path}
-    resources.user.write('config.json', json.dumps(d))
-
-folder = click.get_app_dir("Austere")
+FOLDER = click.get_app_dir("Austere")
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -187,6 +155,65 @@ def cli_base(ctx, verbose, debug, my_version):
         ctx.invoke(local_help)
 
 
+@click.group()
+def windows_cli():
+    pass
+
+
+@windows_cli.command()
+def win_register():
+    "need to be admin"
+    value_to_put = f'"{sys.executable} austere" "%1"'
+    try:
+        with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTP") as k:
+            # winreg.SetValue(k, None, winreg.REG_SZ,  "{} austere".format(sys.argv[0]))
+            logger.debug(r"\shell")
+            with winreg.CreateKey(k, "shell") as shellkey:
+                logger.debug(r"\open")
+                with winreg.CreateKey(shellkey, "open") as openkey:
+                    logger.debug(r"\command")
+                    with winreg.CreateKey(openkey, "command") as cmdkey:
+                        winreg.SetValue(cmdkey, None, winreg.REG_SZ, value_to_put)
+        with winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, "austere.HTTPS") as kssl:
+            winreg.SetValue(kssl, None, winreg.REG_SZ, value_to_put)
+
+    except OSError as e:
+        logger.exception("we hit a registry issue")
+
+
+@windows_cli.command()
+def win_user_reg() -> None:
+    value_to_put = f'"{sys.executable} austere" "%1"'
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\Clients\StartMenuInternet\austere_macguffin") as start_menu:
+        winreg.SetValue(start_menu, None, winreg.REG_SZ, "austere")
+        with winreg.CreateKey(start_menu, "Capabilities") as cap:
+            winreg.SetValueEx(cap, "ApplicationName", None, winreg.REG_SZ, "Jack Laxson Presents: austere")
+            winreg.SetValueEx(cap, "ApplicationDescription", None, winreg.REG_SZ, "long description goes here")
+            winreg.SetValueEx(cap, "ApplicationIcon", None, winreg.REG_SZ, r"C:\Program Files\Mozilla Firefox\firefox.exe,0")
+            with winreg.CreateKey(cap, "URLAssociations") as url_assoc:
+                winreg.SetValueEx(url_assoc, "https", None, winreg.REG_SZ, "austere.HTTP")
+                winreg.SetValueEx(url_assoc, "http", None, winreg.REG_SZ, "austere.HTTP")
+            with winreg.CreateKey(cap, "StartMenu") as assoc_menu:
+                winreg.SetValueEx(assoc_menu, "StartMenuInternet", None, winreg.REG_SZ, "austere_macguffin")
+            with winreg.CreateKey(cap, "FileAssociations") as file_assoc:
+                winreg.SetValueEx(file_assoc, ".html", None, winreg.REG_SZ, "austere.HTTP")
+        with winreg.CreateKey(start_menu, "InstallInfo") as install_info:
+            winreg.SetValueEx(install_info, "IconsVisible", None, winreg.REG_DWORD, 1)
+        with winreg.CreateKey(start_menu, "shell") as shellkey:
+            logger.debug(r"\open")
+            with winreg.CreateKey(shellkey, "open") as openkey:
+                logger.debug(r"\command")
+                with winreg.CreateKey(openkey, "command") as cmdkey:
+                    winreg.SetValue(cmdkey, None, winreg.REG_SZ, value_to_put)
+        with winreg.CreateKey(start_menu, "DefaultIcon") as reg_icon:
+            winreg.SetValue(reg_icon,None, winreg.REG_SZ, r"C:\Program Files\Mozilla Firefox\firefox.exe,0")
+
+    # with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, r"Software\RegisteredApplications") as reg_apps:
+    #     winreg.SetValueEx(reg_apps, "austere_macguffin", None, winreg.REG_SZ, r"Software\Clients\StartMenuInternet\austere_macguffin\Capabilities")
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\RegisteredApplications") as reg_apps:
+        winreg.SetValueEx(reg_apps, "austere_macguffin", None, winreg.REG_SZ, r"Software\Clients\StartMenuInternet\austere_macguffin\Capabilities")
+
+
 @cli_base.command()
 def version():
     ver = "0.2.0"
@@ -200,10 +227,40 @@ def local_help(ctx):
     print(ctx.parent.get_help())
 
 
+def _browser_default():
+    if platform.system() == "Windows":
+        return win_default()
+    elif platform.system() == "Linux":
+        browsers = subprocess.check_output(
+            shlex.split("update-alternatives --list x-www-browser")).split()
+        print("Found these browsers:")
+        for b in browsers:
+            print(b)
+        not_chrome = list(filter(lambda x: "chrome" not in x, browsers))
+        return not_chrome[0]
+
+
 @cli_base.command("config")
-def config_cmd():
+@click.option('--light-browser', prompt=True, default=_browser_default)
+def config_cmd(light_browser):
     """Configure your austere install. Choose a light-weight browser."""
-    pass
+    try:
+        with open(os.path.join(FOLDER, "config.json")) as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        path = pick_browser()
+    click.prompt("Pick your lightweight browser:")
+    light_browser = cfg['light_browser']
+    print("Your default lightweight browser is: %s" % light_browser)
+    z = prompt.query(
+        'Change your lightweight browser? [y/n]', validators=[validators.OptionValidator(["y", "n"])]).lower()
+    if z == "y":
+        path = pick_browser()
+    else:
+        path = light_browser
+    d = {"light_browser": path}
+    with open(os.path.join(FOLDER, "config.json")) as f:
+        json.dump(d, f)
 
 
 @cli_base.command()
@@ -213,5 +270,5 @@ def run_on_url(url):
 
 
 if __name__ == '__main__':
-
-    cli_base()
+    cli = click.CommandCollection(sources=[cli_base, windows_cli])
+    cli()
