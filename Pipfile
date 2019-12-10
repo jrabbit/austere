@@ -8,6 +8,7 @@ clint = "==0.5.1"
 psutil = "*"
 attrs = "*"
 click = "*"
+pywin32 = {version = "*", sys_platform = "== 'win32'"}
 
 [dev-packages]
 

@@ -7,25 +7,25 @@ import subprocess
 import os.path
 import platform
 from typing import List
-
-
-if platform.system() == "Windows":
-    import winreg
+from pathlib import Path
 
 import attr
 import psutil
 import click
 
-from clint import resources
 from clint.textui import prompt, validators, puts, indent
+
+if platform.system() == "Windows":
+    import winreg
+    import win32gui
+    import win32con
 
 logger = logging.getLogger("austere")
 
 
-def main() -> None:
-    resources.init('jacklaxson', 'austere')
-    j = resources.user.read("config.json")
-    light_browser = json.loads(j)['light_browser']
+def main(url) -> None:
+    with open(os.path.join(FOLDER, "config.json")) as j:
+        light_browser = json.loads(j)['light_browser']
     use_light = False
     # check for steam games running
     overlay = [x for x in psutil.process_iter() if "gameoverlayui" in x.name()]
@@ -79,6 +79,9 @@ class WindowsBrowser:
     enum_order = attr.ib()
     path = attr.ib()
 
+    def __str__(self):
+        return f"<{self.enum_order}> {self.name} ({self.path})"
+
 
 # https://stackoverflow.com/questions/31164253/how-to-open-url-in-microsoft-edge-from-the-command-line#31281412
 # https://msdn.microsoft.com/en-us/library/windows/desktop/cc144175(v=vs.85).aspx
@@ -90,8 +93,7 @@ def win_default() -> str:
 
 
 def win_browser_list() -> List[WindowsBrowser]:
-    # https://docs.python.org/3.6/library/winreg.html
-    # reg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
+    # this queries machine scope installs only!
     with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Clients\StartMenuInternet") as key:
         target_keys, value_keys, last_mod = winreg.QueryInfoKey(key)
         l = list()
@@ -102,7 +104,6 @@ def win_browser_list() -> List[WindowsBrowser]:
             path = winreg.QueryValue(key, r"{}\shell\open\command".format(v))
             wb = WindowsBrowser(name=v, enum_order=i, path=path)
             l.append(wb)
-        # print(key)
         return l
 
 
@@ -114,8 +115,13 @@ def pick_browser() -> str:
         opts = win_browser_list()
         for b in opts:
             print(b)
-        path = prompt.query('Pick your lightweight browser:')
-        return path
+        browser = False
+        while not browser:
+            response = click.prompt('Pick your lightweight browser')
+            if response.isdigit():
+                if int(response) <= len(opts):
+                    browser = opts[int(response)]
+        return browser.path
 
     elif platform.system() == "Linux":
         browsers = subprocess.check_output(
@@ -213,6 +219,10 @@ def win_user_reg() -> None:
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\RegisteredApplications") as reg_apps:
         winreg.SetValueEx(reg_apps, "austere_macguffin", None, winreg.REG_SZ, r"Software\Clients\StartMenuInternet\austere_macguffin\Capabilities")
 
+    rc, dwReturnValue = win32gui.SendMessageTimeout(win32con.HWND_BROADCAST,
+        win32con.WM_SETTINGCHANGE, 0, r"Software\Clients\StartMenuInternet", 0, 5000)
+    print(rc, dwReturnValue)
+
 
 @cli_base.command()
 def version():
@@ -244,14 +254,15 @@ def _browser_default():
 @click.option('--light-browser', prompt=True, default=_browser_default)
 def config_cmd(light_browser):
     """Configure your austere install. Choose a light-weight browser."""
+    cfg_path = os.path.join(FOLDER, "config.json")
     try:
-        with open(os.path.join(FOLDER, "config.json")) as f:
+        with open(cfg_path) as f:
             cfg = json.load(f)
-    except FileNotFoundError:
+            light_browser = cfg['light_browser']
+    except (FileNotFoundError, json.JSONDecodeError):
         path = pick_browser()
-    click.prompt("Pick your lightweight browser:")
-    light_browser = cfg['light_browser']
-    print("Your default lightweight browser is: %s" % light_browser)
+
+    print(f"Your configured lightweight browser is: {light_browser}")
     z = prompt.query(
         'Change your lightweight browser? [y/n]', validators=[validators.OptionValidator(["y", "n"])]).lower()
     if z == "y":
@@ -259,16 +270,17 @@ def config_cmd(light_browser):
     else:
         path = light_browser
     d = {"light_browser": path}
-    with open(os.path.join(FOLDER, "config.json")) as f:
+    with open(cfg_path, 'w') as f:
         json.dump(d, f)
 
 
 @cli_base.command()
 @click.argument("URL")
 def run_on_url(url):
-    pass
+    main(url)
 
 
 if __name__ == '__main__':
+    Path(FOLDER).mkdir(exist_ok=True)
     cli = click.CommandCollection(sources=[cli_base, windows_cli])
     cli()
