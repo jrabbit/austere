@@ -17,8 +17,8 @@ def docker_gauntlet(c):
         wheel = attr.ib(default=None)
     whl_version = "0.3.0"
     strats = [Strat(name="pip_wheel", cmd=f"pip install /srv/src/{proj_name}/dist/{{wheel}} && austere version", wheel="austere-{}-py3-none-any.whl".format(whl_version)),
-              Strat(name="pip_install_src", cmd=f"pip install /srv/src/{proj_name} && austere version"),
-              #Strat(name="pipenv", cmd=f"pip install pipenv && cd /srv/src/{proj_name}/ && pipenv sync && pipenv run pyborg version")
+              Strat(name="poetry_1_src", cmd=f"pip install --pre poetry>=1 && cd /srv/src/{proj_name} && poetry install && poetry run austere version"),
+              Strat(name="poetry_stable_src", cmd=f"pip install poetry && cd /srv/src/{proj_name} && poetry install && poetry run austere version"),
              ]
     results = {}
     for py_version in versions_list:
