@@ -7,7 +7,7 @@ from invoke import task
 def docker_gauntlet(c):
     "there's so many ways to fuck this up on install let's try them all!"
     proj_name = "austere"
-    versions_list = ["3.7", "3"]
+    versions_list = ["3.7", "3.8", "3"]
     for py_version in versions_list:
         c.run(f"docker pull python:{py_version}")
     @attr.s
