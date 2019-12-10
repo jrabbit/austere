@@ -269,6 +269,7 @@ def run_on_url(url):
     pass
 
 
+cli = click.CommandCollection(sources=[cli_base, windows_cli])
+
 if __name__ == '__main__':
-    cli = click.CommandCollection(sources=[cli_base, windows_cli])
     cli()
