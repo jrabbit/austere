@@ -9,14 +9,12 @@ import platform
 from typing import List
 from pathlib import Path
 
-if platform.system() == "Windows":
-    import winreg
-
 import attr
 import psutil
 import click
 
-from clint.textui import prompt, validators
+if platform.system() == "Windows":
+    import winreg
 
 logger = logging.getLogger("austere")
 FOLDER = click.get_app_dir("Austere")
@@ -113,25 +111,24 @@ def pick_browser() -> str:
         # get browser options and default on windows
         logger.debug("default browser: %s", win_default())
         opts = win_browser_list()
-        for b in opts:
-            print(b)
-        browser = False
-        while not browser:
-            response = click.prompt('Pick your lightweight browser')
-            if response.isdigit():
-                if int(response) <= len(opts):
-                    browser = opts[int(response)]
-        return browser.path
-
     elif platform.system() == "Linux":
-        browsers = subprocess.check_output(
-            shlex.split("update-alternatives --list x-www-browser")).split()
-        print("Found these browsers:")
-        for b in browsers:
-            print(b)
-        not_chrome = list(filter(lambda x: "chrome" not in x, browsers))
-        path = prompt.query('Pick your lightweight browser:', default=not_chrome[0], validators=[validators.FileValidator()])
-        return path
+        opts = linux_browser_list()
+    for b in opts:
+        print(b)
+    while True:
+        response = click.prompt('Pick your lightweight browser')
+        if response.isdigit():
+            if int(response) <= len(opts):
+                return opts[int(response)].path
+
+class LinuxBrowser(WindowsBrowser):
+    pass
+
+def linux_browser_list():
+    paths = subprocess.check_output(
+        shlex.split("update-alternatives --list x-www-browser")).split()
+    return [LinuxBrowser(name=p, enum_order=i, path=p) for p, i in enumerate(paths)]
+#    not_chrome = list(filter(lambda x: "chrome".encode() not in x, browsers))
 
 
 @click.group(context_settings=CONTEXT_SETTINGS, invoke_without_command=True)
@@ -236,7 +233,7 @@ def _browser_default():
         print("Found these browsers:")
         for b in browsers:
             print(b)
-        not_chrome = list(filter(lambda x: "chrome" not in x, browsers))
+        not_chrome = list(filter(lambda x: "chrome".encode() not in x, browsers))
         return not_chrome[0]
 
 @click.group()
@@ -281,14 +278,9 @@ def config_cmd(light_browser):
             cfg = json.load(f)
         light_browser = cfg['light_browser']
         print(f"Your configured lightweight browser is: {light_browser}")
-    except (FileNotFoundError, json.JSONDecodeError):
-        path = pick_browser()
-    z = prompt.query(
-        'Change your lightweight browser? [y/n]', validators=[validators.OptionValidator(["y", "n"])]).lower()
-    if z == "y":
-        path = pick_browser()
-    else:
-        path = light_browser
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.debug("couldn't open config at %s: %s", f, e)
+    path = pick_browser()
     d = {"light_browser": path}
     with open(cfg_path, 'w') as f:
         json.dump(d, f)
