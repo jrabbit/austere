@@ -16,16 +16,16 @@ import attr
 import psutil
 import click
 
-from clint import resources
-from clint.textui import prompt, validators, puts, indent
+from clint.textui import prompt, validators
 
 logger = logging.getLogger("austere")
+FOLDER = click.get_app_dir("Austere")
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
-def main() -> None:
-    resources.init('jacklaxson', 'austere')
-    j = resources.user.read("config.json")
-    light_browser = json.loads(j)['light_browser']
+def main(url) -> None:
+    with open(os.path.join(FOLDER, "config.json"), "r") as j:
+        light_browser = json.loads(j.read())['light_browser']
     use_light = False
     # check for steam games running
     overlay = [x for x in psutil.process_iter() if "gameoverlayui" in x.name()]
@@ -78,7 +78,8 @@ class WindowsBrowser:
     name = attr.ib()
     enum_order = attr.ib()
     path = attr.ib()
-
+    def __str__(self):
+        return f"<{self.enum_order}> {self.name} ({self.path})"
 
 # https://stackoverflow.com/questions/31164253/how-to-open-url-in-microsoft-edge-from-the-command-line#31281412
 # https://msdn.microsoft.com/en-us/library/windows/desktop/cc144175(v=vs.85).aspx
@@ -114,24 +115,23 @@ def pick_browser() -> str:
         opts = win_browser_list()
         for b in opts:
             print(b)
-        path = prompt.query('Pick your lightweight browser:')
-        return path
+        browser = False
+        while not browser:
+            response = click.prompt('Pick your lightweight browser')
+            if response.isdigit():
+                if int(response) <= len(opts):
+                    browser = opts[int(response)]
+        return browser.path
 
     elif platform.system() == "Linux":
         browsers = subprocess.check_output(
             shlex.split("update-alternatives --list x-www-browser")).split()
         print("Found these browsers:")
-        with indent(4):
-            for b in browsers:
-                puts(b)
+        for b in browsers:
+            print(b)
         not_chrome = list(filter(lambda x: "chrome" not in x, browsers))
         path = prompt.query('Pick your lightweight browser:', default=not_chrome[0], validators=[validators.FileValidator()])
         return path
-
-
-FOLDER = click.get_app_dir("Austere")
-
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 @click.group(context_settings=CONTEXT_SETTINGS, invoke_without_command=True)
@@ -275,14 +275,14 @@ MimeType=text/html;text/xml;application/xhtml_xml;image/webp;x-scheme-handler/ht
 @click.option('--light-browser', prompt=True, default=_browser_default)
 def config_cmd(light_browser):
     """Configure your austere install. Choose a light-weight browser."""
+    cfg_path = os.path.join(FOLDER, "config.json")
     try:
-        with open(os.path.join(FOLDER, "config.json")) as f:
+        with open(cfg_path) as f:
             cfg = json.load(f)
-    except FileNotFoundError:
+        light_browser = cfg['light_browser']
+        print(f"Your configured lightweight browser is: {light_browser}")
+    except (FileNotFoundError, json.JSONDecodeError):
         path = pick_browser()
-    click.prompt("Pick your lightweight browser:")
-    light_browser = cfg['light_browser']
-    print("Your default lightweight browser is: %s" % light_browser)
     z = prompt.query(
         'Change your lightweight browser? [y/n]', validators=[validators.OptionValidator(["y", "n"])]).lower()
     if z == "y":
@@ -290,17 +290,24 @@ def config_cmd(light_browser):
     else:
         path = light_browser
     d = {"light_browser": path}
-    with open(os.path.join(FOLDER, "config.json")) as f:
+    with open(cfg_path, 'w') as f:
         json.dump(d, f)
 
 
 @cli_base.command()
 @click.argument("URL")
 def run_on_url(url):
-    pass
+    "default action?"
+    main(url)
 
-
-cli = click.CommandCollection(sources=[cli_base, windows_cli, linux])
+# Hide os-dependent commands
+if platform.system() == "Linux":
+    cli = click.CommandCollection(sources=[cli_base, linux])()
+elif platform.system == "Windows":
+    cli = click.CommandCollection(sources=[cli_base, windows_cli])
+else:
+    cli = cli_base
 
 if __name__ == '__main__':
+    Path(FOLDER).mkdir(exist_ok=True)
     cli()
