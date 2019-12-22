@@ -7,7 +7,7 @@ import subprocess
 import os.path
 import platform
 from typing import List
-
+from pathlib import Path
 
 if platform.system() == "Windows":
     import winreg
@@ -239,6 +239,37 @@ def _browser_default():
         not_chrome = list(filter(lambda x: "chrome" not in x, browsers))
         return not_chrome[0]
 
+@click.group()
+def linux():
+    pass
+
+
+@linux.command()
+@click.option("--script_name")
+@click.option("--desktop_path")
+def install(desktop_path, script_name):
+    "create .desktop file for gnome and other DEs"
+    if desktop_path:
+        f = desktop_path
+    else:
+        f = Path("", "austere.desktop")
+    if script_name:
+        script = script_name
+    else:
+        script = sys.argv[0]
+    with open(f) as fd:
+        fd.write(f"""#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.1
+Name=Austere
+Comment="a default browser switcher based on material conditions & contexts"
+Exec={script} %u
+#Terminal=True
+Icon=view-refresh
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml_xml;image/webp;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/ftp;
+""")
 
 @cli_base.command("config")
 @click.option('--light-browser', prompt=True, default=_browser_default)
@@ -269,7 +300,7 @@ def run_on_url(url):
     pass
 
 
-cli = click.CommandCollection(sources=[cli_base, windows_cli])
+cli = click.CommandCollection(sources=[cli_base, windows_cli, linux])
 
 if __name__ == '__main__':
     cli()
