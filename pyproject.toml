@@ -19,6 +19,7 @@ mypy = "^0.761"
 
 [tool.poetry.scripts]
 austere = 'austere:cli'
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
