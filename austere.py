@@ -90,6 +90,7 @@ class WindowsBrowser:
 # https://stackoverflow.com/questions/31164253/how-to-open-url-in-microsoft-edge-from-the-command-line#31281412
 # https://msdn.microsoft.com/en-us/library/windows/desktop/cc144175(v=vs.85).aspx
 
+
 def win_default():
     # HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet
     reg_value = winreg.QueryValue(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Clients\StartMenuInternet")
@@ -128,8 +129,10 @@ def pick_browser() -> str:
             if int(response) <= len(opts):
                 return opts[int(response)].path
 
+
 class LinuxBrowser(WindowsBrowser):
     pass
+
 
 def linux_browser_list() -> Sequence[LinuxBrowser]:
     paths = subprocess.check_output(
@@ -246,6 +249,7 @@ def _browser_default():
         not_chrome = list(filter(lambda x: "chrome".encode() not in x, browsers))
         return not_chrome[0]
 
+
 @click.group()
 def linux() -> None:
     pass
@@ -278,6 +282,7 @@ Categories=Network;WebBrowser;
 MimeType=text/html;text/xml;application/xhtml_xml;image/webp;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/ftp;
 """)
 
+
 @cli_base.command("config")
 @click.option('--light-browser', prompt=True, default=_browser_default)
 def config_cmd(light_browser: str) -> None:
@@ -301,6 +306,7 @@ def config_cmd(light_browser: str) -> None:
 def run_on_url(url: str) -> None:
     "default action?"
     main(url)
+
 
 # Hide os-dependent commands
 if platform.system() == "Linux":

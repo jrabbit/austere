@@ -3,6 +3,13 @@ from pprint import pprint
 import attr
 from invoke import task
 
+
+@task
+def lint(c):
+    c.run("poetry run mypy --strict austere.py")
+    c.run("poetry run pylint austere.py --count")
+    c.run("poetry run flake8 austere.py")
+
 @task
 def docker_gauntlet(c):
     "there's so many ways to fuck this up on install let's try them all!"
